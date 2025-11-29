@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Posner Cueing Task</title>
+    <!-- 1. LOAD JSPSYCH FROM CDN -->
+    <script src="https://unpkg.com/jspsych@7.3.4"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@1.1.3"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-html-button-response@1.2.0"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-preload@1.1.3"></script>
+    <link href="https://unpkg.com/jspsych@7.3.4/css/jspsych.css" rel="stylesheet" type="text/css" />
+
+    <!-- 2. CUSTOM STYLES (Make it look like PsychoPy) -->
+    <style>
+        body {
+            background-color: black;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        
+        /* The Stimulus Container */
+        .stimulus-container {
+            position: relative;
+            width: 800px;
+            height: 600px;
+            margin: auto;
+            /* Border for debugging, remove later if desired */
+            /* border: 1px solid #333; */ 
+        }
+
+        /* Fixation Cross/Dot */
+        .fixation {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 10px;
+            height: 10px;
+            background-color: white;
+            border-radius: 50%;
+        }
+
+        /* The Cue (Arrow) */
+        .cue {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 0; 
+            height: 0; 
+            border-top: 20px solid transparent;
+            border-bottom: 20px solid transparent;
+            /* Default points right */
+            border-left: 30px solid salmon; 
+            transform: translate(-50%, -50%);
+        }
+
+        /* The Probe (Green Dot) */
+        .probe {
+            position: absolute;
+            top: 50%;
+            width: 80px;
+            height: 80px;
+            /* Green Gaussian-ish look */
+            background: radial-gradient(circle, rgba(0,255,0,1) 0%, rgba(0,0,0,0) 70%);
+            transform: translate(-50%, -50%);
+        }
+
+        /* Classes to move probe left or right */
+        .pos-left { left: 20%; } /* Approx -300px on 1024 width */
+        .pos-right { left: 80%; } /* Approx +300px */
+
+        /* Classes to rotate cue */
+        .point-left { transform: translate(-50%, -50%) rotate(180deg); }
+        .point-right { transform: translate(-50%, -50%) rotate(0deg); }
+
+    </style>
+</head>
+<body>
+    <!-- The script will inject content here -->
+</body>
+
+<script>
+    // --- 3. INITIALIZE JSPSYCH ---
+    const jsPsych = initJsPsych({
+        on_finish: function() {
+            // Optional: Download CSV at the end
+            // jsPsych.data.get().localSave('csv', 'posner_data.csv');
+        }
+    });
+
+    // --- 4. TIMELINE VARIABLES ---
+    // Creating the conditions (Valid 80%, Invalid 20%)
+    // Valid: Left-Left, Right-Right
+    // Invalid: Left-Right, Right-Left
+    
+    const conditions = [
+        // VALID TRIALS (More of these to mimic 80%)
+        { cueDir: 'left', probePos: 'left', type: 'valid', correct_response: 'ArrowLeft'},
+        { cueDir: 'left', probePos: 'left', type: 'valid', correct_response: 'ArrowLeft'},
+        { cueDir: 'left', probePos: 'left', type: 'valid', correct_response: 'ArrowLeft'},
+        { cueDir: 'left', probePos: 'left', type: 'valid', correct_response: 'ArrowLeft'},
+        { cueDir: 'right', probePos: 'right', type: 'valid', correct_response: 'ArrowRight'},
+        { cueDir: 'right', probePos: 'right', type: 'valid', correct_response: 'ArrowRight'},
+        { cueDir: 'right', probePos: 'right', type: 'valid', correct_response: 'ArrowRight'},
+        { cueDir: 'right', probePos: 'right', type: 'valid', correct_response: 'ArrowRight'},
+        
+        // INVALID TRIALS (Fewer of these)
+        { cueDir: 'left', probePos: 'right', type: 'invalid', correct_response: 'ArrowRight'},
+        { cueDir: 'right', probePos: 'left', type: 'invalid', correct_response: 'ArrowLeft'},
+    ];
+
+    // --- 5. TRIALS ---
+
+    // WELCOME SCREEN
+    const welcome = {
+        type: jsPsychHtmlButtonResponse,
+        stimulus: `
+            <div style="font-size: 24px;">
+                <p><strong>Welcome to the Posner Task</strong></p>
+                <p>1. Keep your eyes on the center dot.</p>
+                <p>2. An arrow will appear (the cue).</p>
+                <p>3. A green dot will appear (the target).</p>
+                <p>4. Press <strong>LEFT</strong> or <strong>RIGHT</strong> arrow keys to match the dot.</p>
+            </div>
+        `,
+        choices: ['START'],
+        button_html: '<button style="font-size: 20px; padding: 10px 30px; cursor: pointer;">%choice%</button>',
+        post_trial_gap: 500
+    };
+
+    // INSTRUCTIONS
+    const instructions = {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: '<p>Place your fingers on the Left and Right arrow keys.</p><p>Press SPACE to begin.</p>',
+        choices: [' '],
+        post_trial_gap: 1000
+    };
+
+    // FIXATION (500ms / 30 frames)
+    const fixation = {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: '<div class="stimulus-container"><div class="fixation"></div></div>',
+        choices: "NO_KEYS",
+        trial_duration: 500
+    };
+
+    // CUE (800ms / 48 frames)
+    const cue = {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: function() {
+            // Get current trial vars
+            let dir = jsPsych.timelineVariable('cueDir');
+            let arrowClass = (dir === 'left') ? 'point-left' : 'point-right';
+            
+            return `
+                <div class="stimulus-container">
+                    <div class="fixation"></div>
+                    <div class="cue ${arrowClass}"></div>
+                </div>
+            `;
+        },
+        choices: "NO_KEYS",
+        trial_duration: 800
+    };
+
+    // PROBE + RESPONSE
+    const probe = {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: function() {
+            let dir = jsPsych.timelineVariable('cueDir');
+            let pos = jsPsych.timelineVariable('probePos');
+            
+            // Should the cue stay on screen? In your python code it disappeared.
+            // But usually in Posner it stays or disappears. 
+            // I will match your code: Cue disappears, only fixation + probe remains.
+            
+            let probeClass = (pos === 'left') ? 'pos-left' : 'pos-right';
+
+            return `
+                <div class="stimulus-container">
+                    <div class="fixation"></div>
+                    <div class="probe ${probeClass}"></div>
+                </div>
+            `;
+        },
+        choices: ['ArrowLeft', 'ArrowRight'],
+        data: {
+            task: 'response',
+            type: jsPsych.timelineVariable('type'), // valid or invalid
+            correct_response: jsPsych.timelineVariable('correct_response')
+        },
+        on_finish: function(data){
+            // Check accuracy
+            data.correct = jsPsych.pluginAPI.compareKeys(data.response, data.correct_response);
+        }
+    };
+
+    // TRIAL PROCEDURE
+    const test_procedure = {
+        timeline: [fixation, cue, probe],
+        timeline_variables: conditions,
+        randomize_order: true,
+        repetitions: 5 // 10 trials * 5 reps = 50 total trials
+    };
+
+    // RESULTS SCREEN
+    const results = {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: function() {
+            // Calculate stats
+            let trials = jsPsych.data.get().filter({task: 'response'});
+            let correct_trials = trials.filter({correct: true});
+            let accuracy = Math.round(correct_trials.count() / trials.count() * 100);
+            
+            // Valid RT
+            let valid_trials = correct_trials.filter({type: 'valid'});
+            let valid_rt = Math.round(valid_trials.select('rt').mean());
+
+            // Invalid RT
+            let invalid_trials = correct_trials.filter({type: 'invalid'});
+            let invalid_rt = Math.round(invalid_trials.select('rt').mean());
+
+            return `
+                <div style="font-size: 24px;">
+                    <p><strong>RESULTS</strong></p>
+                    <p>Accuracy: ${accuracy}%</p>
+                    <p>Reaction Time (Matched/Valid): <span style="color:lightgreen">${valid_rt} ms</span></p>
+                    <p>Reaction Time (Misled/Invalid): <span style="color:salmon">${invalid_rt} ms</span></p>
+                    <br>
+                    <p>Press SPACE to finish.</p>
+                </div>
+            `;
+        },
+        choices: [' ']
+    };
+
+    // --- 6. RUN EXPERIMENT ---
+    jsPsych.run([welcome, instructions, test_procedure, results]);
+
+</script>
+</html>
